@@ -1,0 +1,6 @@
+/* NativeWind's entry point. Tailwind compiles this against tailwind.config.ts
+   and Metro hands the result to the style engine. No design values live here —
+   they come from @life-os/tokens through the theme. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
