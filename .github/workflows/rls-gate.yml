@@ -1,0 +1,23 @@
+name: FC-1 RLS Gate
+
+# Tenant isolation is the wall between strangers' financial records,
+# journals and children's names. Its failure mode is silent, so it is
+# checked by machine on every change rather than by eye before release.
+on:
+  push: { branches: [main] }
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  fc1:
+    name: Cross-tenant isolation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL 16
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-16 postgresql-client-16
+      - name: Run FC-1 isolation suite
+        run: |
+          sudo -E PGBIN=/usr/lib/postgresql/16/bin PGPORT=5433 ./scripts/test-rls.sh
