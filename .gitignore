@@ -1,0 +1,31 @@
+# dependencies
+node_modules/
+
+# secrets — env.example is committed, the real .env never is
+.env
+.env.*
+!.env.example
+
+# expo
+.expo/
+dist/
+web-build/
+*.tsbuildinfo
+expo-env.d.ts
+
+# native build output (EAS builds in the cloud; there is no local Mac)
+ios/
+android/
+
+# tooling caches
+.tamagui/
+.turbo/
+.next/
+out/
+
+# FC-1 gate scratch
+/tmp/lifeos-pg*
+
+# os
+.DS_Store
+*.log
