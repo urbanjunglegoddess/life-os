@@ -1,0 +1,41 @@
+name: App Checks
+
+# The FC-1 gate guards the data wall. This guards the two things that fail
+# silently on the app side: a design value escaping the token module, and a
+# Babel/NativeWind/Metro combination that typechecks but will not bundle.
+on:
+  push: { branches: [main] }
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  checks:
+    name: Tokens, types, bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # ripgrep ships on the GitHub runner image, but the token gate is a
+      # required check and must not go green because a tool was missing.
+      - name: Ensure ripgrep
+        run: rg --version || sudo apt-get install -y -qq ripgrep
+
+      - name: Install
+        run: npm ci
+
+      - name: Token discipline (Root System 4.7 §3.1)
+        run: ./scripts/check-tokens.sh
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Bundling is the only check that exercises the Babel transform, the
+      # NativeWind Metro plugin and the TypeScript Tailwind config together.
+      - name: Bundle
+        working-directory: apps/mobile
+        run: npx expo export --platform android --output-dir "$RUNNER_TEMP/export"
