@@ -42,6 +42,13 @@ jobs:
 
       # Bundling is the only check that exercises the Babel transform, the
       # NativeWind Metro plugin and the TypeScript Tailwind config together.
-      - name: Bundle
+      - name: Bundle mobile
         working-directory: apps/mobile
         run: npx expo export --platform android --output-dir "$RUNNER_TEMP/export"
+
+      # apps/web is a deployable target, so a broken build is a broken release —
+      # and it is the only check that proves packages/tokens still compiles
+      # through Next as well as through Metro.
+      - name: Build web
+        working-directory: apps/web
+        run: npx next build

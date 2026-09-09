@@ -28,6 +28,7 @@ EXCLUDES=(
   --glob '!**/node_modules/**'
   --glob '!**/dist/**'
   --glob '!**/.expo/**'
+  --glob '!**/.next/**'
   --glob '!**/build/**'
   --glob '!**/assets/**'
 )
