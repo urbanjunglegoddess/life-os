@@ -17,13 +17,25 @@ const RAW = {
 /**
  * Rule 4 exists because anything in a React Native bundle is extractable, and a
  * service key pasted into the wrong variable is invisible until someone dumps
- * the bundle. `sb_secret_` is the modern secret prefix; the legacy service key
- * is a JWT whose payload carries `"role":"service_role"`, which survives
- * base64 into the raw token as this fragment.
+ * the bundle.
+ *
+ * Two shapes to catch. `sb_secret_` is the modern prefix. The legacy key is a
+ * JWT whose payload carries `"role":"service_role"` — and base64 encodes that
+ * text differently depending on its byte offset within the payload, so there is
+ * no single fragment to grep for. There are exactly three alignments, because
+ * base64 works in three-byte groups; all three are listed. Matching only one of
+ * them misses roughly two keys in three.
  */
+const SERVICE_ROLE_BASE64_ALIGNMENTS = [
+  'nJvbGUiOiJzZXJ2aWN',
+  'Jyb2xlIjoic2Vydmlj',
+  'icm9sZSI6InNlcnZpY',
+];
+
 function assertNotASecretKey(key: string): string {
   const looksSecret =
-    key.startsWith('sb_secret_') || key.includes('InNlcnZpY2Vfcm9sZSI');
+    key.startsWith('sb_secret_') ||
+    SERVICE_ROLE_BASE64_ALIGNMENTS.some((fragment) => key.includes(fragment));
   if (looksSecret) {
     throw new Error(
       'EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY holds a SERVICE-ROLE key. ' +
