@@ -4,9 +4,17 @@ import '../global.css';
 import { COLOR } from '@life-os/tokens';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { startSessionAutoRefresh } from '../lib/supabase';
+
 export default function RootLayout() {
+  // Token refresh is driven off app foreground/background rather than a bare
+  // timer, which a backgrounded RN app does not reliably service. Mounted once,
+  // at the root, so there is exactly one subscription for the app's lifetime.
+  useEffect(() => startSessionAutoRefresh(), []);
+
   return (
     <SafeAreaProvider>
       {/*
