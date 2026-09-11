@@ -1,0 +1,18 @@
+{
+  // Test files run under `node --test`, not through Metro or Next. They are a
+  // separate compile target: Node builtins and no react-native condition.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["apps/**/*.test.ts", "packages/**/*.test.ts"]
+}

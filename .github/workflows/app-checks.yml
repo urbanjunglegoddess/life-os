@@ -40,6 +40,12 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      # The flow primitive's state machine carries the BUILD-SPEC §5.3
+      # non-negotiables. They are product rules, so a regression in one is a
+      # regression in the product rather than a bug in a component.
+      - name: Unit tests
+        run: npm test
+
       # Bundling is the only check that exercises the Babel transform, the
       # NativeWind Metro plugin and the TypeScript Tailwind config together.
       - name: Bundle mobile
