@@ -1,23 +1,19 @@
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { TARGET } from '@life-os/tokens';
 
-import { getSession, onAuthStateChange } from '../lib/auth';
+import { getSession, onAuthStateChange, signOut } from '../lib/auth.ts';
 
 /**
- * The shell. It exists to prove two things end to end: a route renders through
- * the token module, and the Supabase client reaches the project and reports a
- * real session state.
- *
- * It is deliberately not a stand-in for the Today flow, and the sign-in path is
- * deliberately absent. BUILD-SPEC §7 puts the reusable flow primitive (§5.2,
- * §5.3) BEFORE any screen that uses it, and email OTP is a two-question
- * sequence — it is that primitive's first real caller, not a form to hand-roll
- * here and rewrite later.
+ * Home. Still a shell — the Today flow is §7 step 6 and does not exist — but it
+ * is now a real entry point rather than a status card: the one thing it offers
+ * is the path into capture, which is the app's whole promise at this stage.
  */
 type AuthState = 'checking' | 'signed-in' | 'signed-out' | 'error';
 
-export default function Shell() {
+export default function Home() {
   const [auth, setAuth] = useState<AuthState>('checking');
   const [detail, setDetail] = useState<string | null>(null);
 
@@ -25,20 +21,16 @@ export default function Shell() {
     let active = true;
 
     getSession()
-      .then((session) => {
-        if (active) setAuth(session ? 'signed-in' : 'signed-out');
-      })
+      .then((s) => active && setAuth(s ? 'signed-in' : 'signed-out'))
       .catch((e: unknown) => {
-        // Never swallow a failure silently (CLAUDE.md — Error handling).
         if (!active) return;
         setAuth('error');
         setDetail(e instanceof Error ? e.message : String(e));
       });
 
-    const unsubscribe = onAuthStateChange((session) => {
-      setAuth(session ? 'signed-in' : 'signed-out');
-    });
-
+    const unsubscribe = onAuthStateChange((s) =>
+      setAuth(s ? 'signed-in' : 'signed-out'),
+    );
     return () => {
       active = false;
       unsubscribe();
@@ -49,41 +41,101 @@ export default function Shell() {
     <SafeAreaView className="flex-1 bg-base">
       <View className="flex-1 gap-6 p-4">
         <View className="gap-1">
-          <Text className="text-2xl font-semibold text-primary">Life OS</Text>
-          <Text className="text-sm text-muted">Slice one · app shell</Text>
-        </View>
-
-        <View className="gap-2 rounded-lg border-thin border-decorative bg-surface p-4">
-          <Text className="text-base text-primary">Wired</Text>
-          <Text className="text-sm text-muted">
-            Expo Router · NativeWind · @life-os/tokens · Supabase
+          <Text
+            accessibilityRole="header"
+            className="text-2xl font-semibold text-primary"
+          >
+            Life OS
           </Text>
+          <Text className="text-sm text-muted">Slice one · capture</Text>
         </View>
 
-        <View className="gap-2 rounded-lg border-thin border-decorative bg-surface p-4">
-          <Text className="text-base text-primary">Session</Text>
-          {auth === 'checking' && (
-            <Text className="text-sm text-muted">Checking…</Text>
-          )}
-          {auth === 'signed-in' && (
-            <Text className="text-sm text-state-success-text">Signed in</Text>
-          )}
-          {auth === 'signed-out' && (
-            <Text className="text-sm text-muted">
-              Signed out — no sign-in path until the flow primitive exists.
-            </Text>
-          )}
-          {auth === 'error' && (
-            <Text className="text-sm text-state-error">
-              {detail ?? 'Could not reach Supabase.'}
-            </Text>
-          )}
-        </View>
+        {auth === 'checking' && <Text className="text-sm text-muted">Checking…</Text>}
 
+        {auth === 'error' && (
+          <View className="gap-2 rounded-lg border-thin border-decorative bg-surface p-4">
+            <Text className="text-base text-state-error">Could not reach Supabase</Text>
+            <Text className="text-sm text-muted">{detail ?? 'Unknown error.'}</Text>
+          </View>
+        )}
+
+        {auth === 'signed-out' && (
+          <View className="gap-4">
+            <Text className="text-base leading-relaxed text-muted">
+              Sign in to start capturing.
+            </Text>
+            <HomeButton
+              label="Sign in"
+              hint="Opens the email sign-in flow"
+              onPress={() => router.push('/sign-in')}
+              emphasis="primary"
+            />
+          </View>
+        )}
+
+        {auth === 'signed-in' && (
+          <View className="gap-4">
+            {/*
+              The whole point of the app at this stage: one tap from open to a
+              captured thought. Everything else on this screen gives way to it.
+            */}
+            <HomeButton
+              label="Capture"
+              hint="Opens the capture flow to add something new"
+              onPress={() => router.push('/capture')}
+              emphasis="primary"
+            />
+            <HomeButton
+              label="Sign out"
+              hint="Ends this session on the device"
+              onPress={() => void signOut()}
+            />
+          </View>
+        )}
+
+        <View className="grow" />
         <Text className="text-sm text-muted">
-          Next: the flow primitive, then email OTP as its first caller.
+          Next: the Today flow, against actions_today.
         </Text>
       </View>
     </SafeAreaView>
+  );
+}
+
+function HomeButton({
+  label,
+  hint,
+  onPress,
+  emphasis = 'secondary',
+}: {
+  label: string;
+  hint: string;
+  onPress: () => void;
+  emphasis?: 'primary' | 'secondary';
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={hint}
+      hitSlop={TARGET['hit-slop-default']}
+      style={{ minHeight: TARGET['tap-target-min'] }}
+      className={[
+        'justify-center rounded-md px-4',
+        emphasis === 'primary'
+          ? 'bg-accent-primary'
+          : 'border-thin border-meaningful bg-surface',
+      ].join(' ')}
+    >
+      <Text
+        className={[
+          'text-center text-base font-semibold',
+          emphasis === 'primary' ? 'text-on-warm' : 'text-primary',
+        ].join(' ')}
+      >
+        {label}
+      </Text>
+    </Pressable>
   );
 }

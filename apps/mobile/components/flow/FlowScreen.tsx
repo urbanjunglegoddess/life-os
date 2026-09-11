@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { TARGET } from '@life-os/tokens';
 
@@ -13,6 +14,13 @@ export interface FlowScreenProps {
   readonly title: string;
   /** Why it is here. */
   readonly context?: string;
+  /**
+   * What the subject is answered WITH, when a fixed response set cannot carry
+   * it — a text field, or a list too long for three slots. It sits inside
+   * region 2 so the anatomy is unchanged: the subject is still one thing, and
+   * the response row below still never moves.
+   */
+  readonly children?: ReactNode;
   /**
    * Responses in FIXED SLOTS rather than an array. §5.2 says position is
    * load-bearing and actions never reorder between screens, and an array would
@@ -45,6 +53,7 @@ export function FlowScreen({
   canGoBack,
   title,
   context,
+  children,
   primary,
   secondary,
   tertiary,
@@ -106,6 +115,7 @@ export function FlowScreen({
         {context !== undefined && (
           <Text className="text-base leading-relaxed text-muted">{context}</Text>
         )}
+        {children !== undefined && <View className="gap-2 pt-4">{children}</View>}
       </ScrollView>
 
       {/*
