@@ -10,9 +10,10 @@
     "node": ">=20.19.4"
   },
   "scripts": {
+    "check:tokens": "./scripts/check-tokens.sh",
     "mobile": "npm run start --workspace apps/mobile",
-    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "node --test \"apps/**/*.test.ts\" \"packages/**/*.test.ts\"",
     "test:rls": "./scripts/test-rls.sh",
-    "check:tokens": "./scripts/check-tokens.sh"
+    "typecheck": "npm run typecheck --workspaces --if-present && tsc -p tsconfig.tests.json"
   }
 }
