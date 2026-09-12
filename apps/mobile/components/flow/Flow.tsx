@@ -38,6 +38,16 @@ export interface FlowProps {
    */
   readonly cleared: { readonly title: string; readonly body?: string };
   readonly onComplete?: (answers: Readonly<Record<StepId, FlowAnswer>>) => void;
+  /**
+   * Side effect for one answer — a write, usually. AWAITED BEFORE THE FLOW
+   * ADVANCES, and a rejection holds the step where it is.
+   *
+   * The app is online-only (ADR-0012): a write needs a connection, and moving
+   * to the next card while the last one failed silently would make the queue
+   * lie about what landed. Handled once here instead of correctly-or-not in
+   * every flow.
+   */
+  readonly onRespond?: (stepId: StepId, value: string) => void | Promise<void>;
 }
 
 /**
@@ -56,9 +66,29 @@ export function Flow({
   onRetry,
   cleared,
   onComplete,
+  onRespond,
 }: FlowProps) {
   const flow = useFlow(steps.map((s) => s.id));
   const [showingAll, setShowingAll] = useState(false);
+  const [writing, setWriting] = useState(false);
+  const [writeError, setWriteError] = useState<string | null>(null);
+
+  async function respondWith(stepId: StepId, value: string) {
+    if (onRespond !== undefined) {
+      setWriting(true);
+      setWriteError(null);
+      try {
+        await onRespond(stepId, value);
+      } catch (e) {
+        // Stay on this step. Nothing is lost and the same answer can be retried.
+        setWriteError(e instanceof Error ? e.message : 'That did not save.');
+        setWriting(false);
+        return;
+      }
+      setWriting(false);
+    }
+    flow.respond(value);
+  }
 
   useEffect(() => {
     if (status === 'ready' && flow.isComplete) onComplete?.(flow.answers);
@@ -170,7 +200,8 @@ export function Flow({
   const respond = (r: FlowResponse) => ({
     label: r.label,
     hint: r.hint,
-    onPress: () => flow.respond(r.value),
+    onPress: () => void respondWith(step.id, r.value),
+    disabled: writing,
   });
 
   return (
@@ -185,6 +216,16 @@ export function Flow({
       primary={respond(step.primary)}
       secondary={step.secondary && respond(step.secondary)}
       tertiary={step.tertiary && respond(step.tertiary)}
-    />
+    >
+      {writeError !== null && (
+        <View className="gap-1">
+          {/* Spoken in words — ember is not audible (4.8 §7). */}
+          <Text className="text-sm text-state-error">{writeError}</Text>
+          <Text className="text-sm text-muted">
+            Nothing was lost. Choose again to retry.
+          </Text>
+        </View>
+      )}
+    </FlowScreen>
   );
 }

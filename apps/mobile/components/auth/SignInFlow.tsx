@@ -77,7 +77,6 @@ export function SignInFlow({ onSignedIn }: { onSignedIn: () => void }) {
         setError(null);
       }}
       /* No list to escape to: two steps ARE the whole structure here. */
-      onShowAll={() => {}}
       title={isEmail ? 'What is your email?' : 'Enter the code'}
       context={
         isEmail
