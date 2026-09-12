@@ -133,7 +133,6 @@ export function CaptureFlow({ onDone }: { onDone: () => void }) {
       total={3}
       canGoBack={stage !== 'title'}
       onBack={() => setStage(stage === 'when' ? 'area' : 'title')}
-      onShowAll={() => {}}
       title={
         stage === 'title'
           ? 'What is it?'

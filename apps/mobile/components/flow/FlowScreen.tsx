@@ -7,7 +7,15 @@ import { FlowAction, type FlowActionSpec } from './FlowAction.tsx';
 export interface FlowScreenProps {
   readonly position: number;
   readonly total: number;
-  readonly onShowAll: () => void;
+  /**
+   * Drops the flow to a scannable list. OPTIONAL only because some flows are
+   * short enough to have no list worth showing — sign-in is two questions. When
+   * it is absent the control is still rendered, DISABLED: §5.2 makes position
+   * load-bearing, so removing it would shift progress sideways between flows,
+   * and a button that silently does nothing is worse than one that says it
+   * cannot.
+   */
+  readonly onShowAll?: () => void;
   readonly onBack: () => void;
   readonly canGoBack: boolean;
   /** THE SUBJECT — the one thing being decided. */
@@ -93,7 +101,8 @@ export function FlowScreen({
         <FlowAction
           label="Show all"
           hint="Shows every question in this flow as a list you can scan"
-          onPress={onShowAll}
+          onPress={onShowAll ?? (() => {})}
+          disabled={onShowAll === undefined}
         />
       </View>
 
