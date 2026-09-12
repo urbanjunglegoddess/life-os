@@ -40,8 +40,16 @@ remains the gate — it proves the wall against a throwaway Postgres, which a
 live project cannot do safely.
 
 Slice one so far: token package, app shell, email OTP auth, the flow primitive,
-the capture flow, the Today flow, the escape-hatch list, and the journal —
-migration, biometric gate and flow (§7 steps 1–8).
+the capture flow, the Today flow, the escape-hatch list, the journal —
+migration, biometric gate and flow — and failed-write logging (§7 steps 1–9).
+
+The failed-write log is `apps/mobile/lib/writeLog.ts`: an append-only JSONL
+file in the device's document directory, written by `loggedWrite` in the
+data-access layer so a new flow cannot forget it, and read back in Settings.
+It records the timestamp, which write was attempted, and whether the failure
+was the network or the server — nothing from the error but its own message,
+so a failed journal write cannot put a journal line on disk in plaintext.
+It is NOT a write queue (ADR-0012 deferred that): nothing is ever replayed.
 
 The button-list home screen is gone. The app opens on a four-tab bar — Today ·
 Capture · Journal · Settings — and `app/index.tsx` is now nothing but the
@@ -49,9 +57,10 @@ signed-in/signed-out gate, per the Command Center design's "there is no
 dashboard". Settings is not a §7 step; it was built alongside step 8 at the
 owner's direction, and carries the account-deletion copy the stores require.
 
-Next is step 9, failed-write logging. **Still unbuilt:** the account deletion
-itself (a cascading hard delete — its own slice, §9), and the Lifestyle Vault,
-which the design badges FUTURE-STATE · NOT IN BETA.
+Next is step 10, an EAS build to a real device — the beta starts there, not
+before. **Still unbuilt:** the account deletion itself (a cascading hard delete
+— its own slice, §9), and the Lifestyle Vault, which the design badges
+FUTURE-STATE · NOT IN BETA.
 
 ## 3. Locked stack
 
@@ -63,6 +72,12 @@ Supabase (Postgres, Auth email OTP, RLS, Storage) · `expo-local-authentication`
 
 Deferred, do not pull in: `expo-sqlite`, Victory Native, Realtime, Edge Functions,
 pg_cron, RevenueCat.
+
+`expo-file-system` was added at step 9 and carries ONE file: the failed-write
+log. ADR-0012 requires that log to be local and durable while deferring
+`expo-sqlite`, which leaves the document directory as the only place it can
+live. It is not a cache and not a queue, and no read path may start using it —
+that would be the offline layer arriving through the back door.
 
 ## 4. Repo structure
 

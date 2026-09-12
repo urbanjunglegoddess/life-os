@@ -1,5 +1,7 @@
 import { supabase } from './supabase.ts';
 import { TodayRowSchema, type TodayRow } from './todayQueue.ts';
+import { loggedWrite } from './writeLog.ts';
+import type { WriteOp } from './writeLogEntry.ts';
 
 /**
  * The Today data path — BUILD-SPEC §5.4, build order step 6.
@@ -24,13 +26,24 @@ export async function listTodayRows(): Promise<readonly TodayRow[]> {
   return TodayRowSchema.array().parse(data ?? []);
 }
 
-async function setStatus(id: string, status: 'doing' | 'done' | 'open' | 'dropped') {
-  // No tenant filter in the statement, on purpose. `actions_all` restricts both
-  // the rows this can see and the rows it may write; adding a client-side
-  // tenant check here would imply the wall needs help, and invite someone to
-  // later "optimise" it away.
-  const { error } = await supabase.from('actions').update({ status }).eq('id', id);
-  if (error) throw error;
+/**
+ * The single status write. Every caller passes its own `op` rather than letting
+ * this log one shared name: at the beta gate "the queue failed forty times"
+ * answers nothing, while "drop failed and complete did not" points at a screen.
+ */
+async function setStatus(
+  op: WriteOp,
+  id: string,
+  status: 'doing' | 'done' | 'open' | 'dropped',
+) {
+  return loggedWrite(op, async () => {
+    // No tenant filter in the statement, on purpose. `actions_all` restricts both
+    // the rows this can see and the rows it may write; adding a client-side
+    // tenant check here would imply the wall needs help, and invite someone to
+    // later "optimise" it away.
+    const { error } = await supabase.from('actions').update({ status }).eq('id', id);
+    if (error) throw error;
+  });
 }
 
 /**
@@ -44,11 +57,11 @@ async function setStatus(id: string, status: 'doing' | 'done' | 'open' | 'droppe
  * never be completed from Today.
  */
 export async function startAction(id: string): Promise<void> {
-  await setStatus(id, 'doing');
+  await setStatus('action.start', id, 'doing');
 }
 
 export async function completeAction(id: string): Promise<void> {
-  await setStatus(id, 'done');
+  await setStatus('action.complete', id, 'done');
 }
 
 /**
@@ -57,7 +70,7 @@ export async function completeAction(id: string): Promise<void> {
  * answer, and destroying the record of it would lose that.
  */
 export async function dropAction(id: string): Promise<void> {
-  await setStatus(id, 'dropped');
+  await setStatus('action.drop', id, 'dropped');
 }
 
 /**
@@ -73,5 +86,5 @@ export async function restoreAction(
   id: string,
   previousStatus: 'open' | 'doing',
 ): Promise<void> {
-  await setStatus(id, previousStatus);
+  await setStatus('action.restore', id, previousStatus);
 }

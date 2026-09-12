@@ -5,6 +5,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TARGET } from '@life-os/tokens';
 
+import { FailedWriteLog } from '../../components/settings/FailedWriteLog.tsx';
 import { signOut } from '../../lib/auth.ts';
 import { listEntities, type Entity } from '../../lib/entities.ts';
 import { ENV } from '../../lib/env.ts';
@@ -121,6 +122,11 @@ export default function SettingsRoute() {
               that is not adjustable in the beta.
             </Text>
           </View>
+        </Section>
+
+        {/* ---------- FAILED WRITES ---------- */}
+        <Section title="Failed saves">
+          <FailedWriteLog />
         </Section>
 
         {/* ---------- LEGAL ---------- */}

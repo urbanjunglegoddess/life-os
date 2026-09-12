@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { supabase } from './supabase.ts';
+import { loggedWrite } from './writeLog.ts';
 
 /**
  * The journal data path — BUILD-SPEC §5.6, build order step 8.
@@ -66,16 +67,24 @@ export async function getEntryForDay(day: string): Promise<JournalEntry | null> 
  * from here, because merging one answer into a day that may already hold others
  * is a computation and rule 2 puts those in Postgres. The function is SECURITY
  * INVOKER, so it is bound by the same policy a direct write would be.
+ *
+ * The failure is logged (ADR-0012) WITHOUT the line that was being written. The
+ * log is an unencrypted file and this is the one write in the app whose payload
+ * is the private thing the biometric gate exists for — `writeLogEntry.ts` keeps
+ * the error's own message and nothing else, and that boundary is the reason
+ * journal text never reaches disk in plaintext on the failure path.
  */
 export async function recordJournalResponse(
   day: string,
   slug: string,
   text: string,
 ): Promise<void> {
-  const { error } = await supabase.rpc('record_journal_response', {
-    p_entry_date: day,
-    p_slug: slug,
-    p_text: text,
+  return loggedWrite('journal.respond', async () => {
+    const { error } = await supabase.rpc('record_journal_response', {
+      p_entry_date: day,
+      p_slug: slug,
+      p_text: text,
+    });
+    if (error) throw error;
   });
-  if (error) throw error;
 }
