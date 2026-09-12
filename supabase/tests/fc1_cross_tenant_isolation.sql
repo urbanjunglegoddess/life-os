@@ -42,6 +42,19 @@ select tenant_id, 'Alice: pay the water bill' from t where who='alice';
 insert into public.actions (tenant_id, title)
 select tenant_id, 'Bob: book flights' from t where who='bob';
 
+-- The journal is the most private surface in the app, and the only one behind a
+-- biometric gate. The gate is a CLIENT control; these rows are what proves the
+-- wall underneath it holds when the client is not in the picture at all.
+-- Prompts are already seeded per tenant by the signup trigger.
+insert into public.journal_entries (tenant_id, profile_id, entry_date, responses)
+select tenant_id, profile_id, date '2026-09-12',
+       '{"held-up":"Alice: the voucher office closes at 4"}'::jsonb
+from t where who='alice';
+insert into public.journal_entries (tenant_id, profile_id, entry_date, responses)
+select tenant_id, profile_id, date '2026-09-12',
+       '{"held-up":"Bob: waiting on the flight refund"}'::jsonb
+from t where who='bob';
+
 -- ================= ATTACKS, RUN AS ALICE =================
 begin;
 set local role authenticated;
@@ -124,6 +137,83 @@ do $$ begin
      where pt.schemaname='public'
        and pt.tablename not in ('test_results','t')
        and not c.relrowsecurity));
+end $$;
+
+-- ================= THE JOURNAL, RUN AS ALICE =================
+-- Appended as its own block rather than folded into the block above so the
+-- existing twelve keep their numbers: CLAUDE.md and several code comments name
+-- "test 5", "test 10" and "test 11" specifically.
+begin;
+set local role authenticated;
+set local "request.jwt.claims" = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
+
+do $$
+declare b_t uuid; ok text; n int;
+begin
+  select tenant_id into b_t from t where who='bob';
+
+  perform assert('13. Alice reads only her own journal entries',
+    'Alice: the voucher office closes at 4',
+    (select string_agg(responses->>'held-up', ', ') from public.journal_entries));
+
+  -- The prompt set is per tenant so it can be reworded per account. That makes
+  -- it a tenant-scoped table like any other, and it has to hold like one.
+  perform assert('14. Alice sees only her own tenant''s journal prompts','3',
+    (select count(*)::text from public.journal_prompts));
+
+  ok := 'BLOCKED';
+  begin insert into public.journal_entries (tenant_id, profile_id, entry_date, responses)
+        values (b_t,'11111111-1111-1111-1111-111111111111', date '2026-09-13',
+                '{"held-up":"INJECTED BY ALICE"}'::jsonb);
+        ok := 'ALLOWED'; exception when others then ok := 'BLOCKED'; end;
+  perform assert('15. Alice cannot INSERT a journal entry into Bob''s tenant','BLOCKED',ok);
+
+  n := 0;
+  begin update public.journal_entries
+           set responses = '{"held-up":"OVERWRITTEN BY ALICE"}'::jsonb
+         where tenant_id = b_t;
+        get diagnostics n = row_count;
+        exception when others then n := 0; end;
+  perform assert('16. Alice cannot UPDATE Bob''s journal entry','0',n::text);
+
+  ok := 'BLOCKED';
+  begin update public.journal_entries set tenant_id = b_t
+         where responses->>'held-up' like 'Alice:%';
+        get diagnostics n = row_count;
+        ok := case when n>0 then 'ALLOWED' else 'BLOCKED' end;
+        exception when others then ok := 'BLOCKED'; end;
+  perform assert('17. Alice cannot REPARENT her journal entry into Bob''s tenant','BLOCKED',ok);
+
+  n := 0;
+  begin delete from public.journal_prompts where tenant_id = b_t;
+        get diagnostics n = row_count;
+        exception when others then n := 0; end;
+  perform assert('18. Alice cannot DELETE Bob''s journal prompts','0',n::text);
+end $$;
+commit;
+
+begin;
+set local role anon;
+do $$
+declare ok text;
+begin
+  begin ok := (select count(*)::text from public.journal_entries);
+  exception when others then ok := '0'; end;
+  perform assert('19. Anon holding the public key reads no journal entries','0',ok);
+end $$;
+commit;
+
+-- ================= FORCED, NOT MERELY ENABLED =================
+-- `enable` leaves the table OWNER exempt, so a definer function that touches
+-- the table reads every tenant. Test 12 would stay green through that; this is
+-- the assertion that goes red. Applies to every table, not just the new ones.
+do $$ begin
+  perform assert('20. Every public table has RLS FORCED','0',
+    (select count(*)::text from pg_tables pt
+     join pg_class c on c.relname=pt.tablename and c.relnamespace='public'::regnamespace
+     where pt.schemaname='public'
+       and pt.tablename not in ('test_results','t')
+       and not c.relforcerowsecurity));
 end $$;
 
 \set QUIET off

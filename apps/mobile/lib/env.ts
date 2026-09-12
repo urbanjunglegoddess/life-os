@@ -12,6 +12,7 @@ const RAW = {
   EXPO_PUBLIC_SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL,
   EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
     process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  EXPO_PUBLIC_WEB_URL: process.env.EXPO_PUBLIC_WEB_URL,
 };
 
 /**
@@ -58,6 +59,26 @@ const EnvSchema = z.object({
       'EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY is missing — copy env.example to .env',
     )
     .transform(assertNotASecretKey),
+  /**
+   * Origin of the `apps/web` compliance site — the privacy policy, the terms,
+   * and the account-deletion request route Google Play requires (ADR-0014).
+   *
+   * OPTIONAL, and deliberately has no default. The site is not deployed and no
+   * domain has been chosen, so a fallback here would be a guessed URL shipped
+   * as a live link. Settings renders the paths as plain text until this is set
+   * and links them once it is.
+   */
+  EXPO_PUBLIC_WEB_URL: z
+    .string()
+    .optional()
+    // An unset variable and one set to the empty string mean the same thing —
+    // not configured. Without this, `EXPO_PUBLIC_WEB_URL=` in a .env would
+    // throw at startup on the https check.
+    .transform((v) => (v === undefined || v.trim() === '' ? undefined : v.trim()))
+    .refine(
+      (v) => v === undefined || v.startsWith('https://'),
+      'EXPO_PUBLIC_WEB_URL must be https',
+    ),
 });
 
 const parsed = EnvSchema.safeParse(RAW);

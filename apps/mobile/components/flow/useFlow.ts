@@ -31,6 +31,7 @@ export interface Flow {
   readonly skip: () => void;
   readonly back: () => void;
   readonly goTo: (index: number) => void;
+  readonly clearAnswer: (stepId: StepId) => void;
   readonly exit: () => void;
   readonly resume: () => void;
 }
@@ -52,6 +53,10 @@ export function useFlow(stepIds: readonly StepId[]): Flow {
     (index: number) => dispatch({ type: 'goTo', index }),
     [],
   );
+  const clearAnswer = useCallback(
+    (stepId: StepId) => dispatch({ type: 'clearAnswer', stepId }),
+    [],
+  );
   const exit = useCallback(() => dispatch({ type: 'exit' }), []);
   const resume = useCallback(() => dispatch({ type: 'resume' }), []);
 
@@ -70,9 +75,10 @@ export function useFlow(stepIds: readonly StepId[]): Flow {
       skip,
       back,
       goTo,
+      clearAnswer,
       exit,
       resume,
     }),
-    [state, respond, skip, back, goTo, exit, resume],
+    [state, respond, skip, back, goTo, clearAnswer, exit, resume],
   );
 }

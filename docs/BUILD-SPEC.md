@@ -29,14 +29,29 @@ Slice zero is merged and green.
 | `current_tenant_ids()` — SECURITY DEFINER, own auth check, pinned search_path | same |
 | Signup trigger bootstrapping profile, tenant, membership, entities, areas | same |
 | `actions_today` view with `security_invoker = true` | same |
-| FC-1 cross-tenant isolation suite — 12 attacks, 12 passing | `supabase/tests/fc1_cross_tenant_isolation.sql` |
+| FC-1 cross-tenant isolation suite — 20 attacks | `supabase/tests/fc1_cross_tenant_isolation.sql` |
 | CI gate | `.github/workflows/rls-gate.yml` |
 
 No app exists. That is slice one.
 
-**Blocked:** the Supabase project is not yet provisioned (free-tier limit).
-Migrations apply unchanged the moment it exists. Build against a local Postgres
-using `scripts/test-rls.sh` until then.
+**Unblocked 2026-09-10:** the Supabase project is provisioned and
+`20260826000100_tenancy_and_spine.sql` is applied to it. `scripts/test-rls.sh`
+remains the gate — it proves the wall against a throwaway Postgres, which a
+live project cannot do safely.
+
+Slice one so far: token package, app shell, email OTP auth, the flow primitive,
+the capture flow, the Today flow, the escape-hatch list, and the journal —
+migration, biometric gate and flow (§7 steps 1–8).
+
+The button-list home screen is gone. The app opens on a four-tab bar — Today ·
+Capture · Journal · Settings — and `app/index.tsx` is now nothing but the
+signed-in/signed-out gate, per the Command Center design's "there is no
+dashboard". Settings is not a §7 step; it was built alongside step 8 at the
+owner's direction, and carries the account-deletion copy the stores require.
+
+Next is step 9, failed-write logging. **Still unbuilt:** the account deletion
+itself (a cascading hard delete — its own slice, §9), and the Lifestyle Vault,
+which the design badges FUTURE-STATE · NOT IN BETA.
 
 ## 3. Locked stack
 
@@ -120,15 +135,27 @@ should be able to hit "later" without reading, three mornings in.
 Order is consequence-first: what breaks if skipped, ranked by cost of missing —
 not by time of day.
 
-1. **Overdue**, most consequential first — **capped**, with "+N more".
+1. **Overdue**, most consequential first — **capped at 3**, with "+N more".
    An unbounded overdue list is a guilt list and people stop opening those.
-   The cap number is open — see §11.
+   The rest sits behind one screen and is still reachable; it just does not
+   greet you. Raise the number only on the first week's real data (§11 #1).
 2. **Due today**, same ranking.
 3. **Calendar context** — a single non-interactive screen showing the day's
    fixed shape. Not in the beta (no calendar), but the slot is reserved.
 
-Per card: `Do now` (opens `do_now_url` if present, else marks doing) ·
-`Later` · `Drop`.
+Per card: `Do now` (marks the Action doing, and opens `do_now_url` when there
+is one) · `Later` · `Drop`.
+
+**Completing, decided 2026-09-10.** ADR-0011 puts "complete and undo" in beta
+scope, and the three slots above have no room for a fourth button. So the
+primary slot changes WORD, never position: an Action already `doing` shows
+`Done` there next time it comes round. `Later` writes nothing at all — pushing
+the due date would be the app rewriting a commitment because someone was not
+ready at 6am. `Drop` sets status `dropped`; the row survives, the view stops
+returning it.
+
+Undo of a completion is not built yet. The trigger clears `completed_at` when
+status leaves `done`, so the data side is ready for it.
 
 **The cleared state is a real screen, not an empty list.** When the queue is
 worked, say so plainly and stop. Do not backfill with optional work to keep the
@@ -250,8 +277,8 @@ assertion, because it buys false confidence.
 
 | # | Question | Who decides |
 | --- | --- | --- |
-| 1 | The overdue cap number in §5.4 | Omegea, from the first week's real data |
-| 2 | Journal prompt set and wording | Omegea |
+| 1 | ~~The overdue cap number in §5.4~~ **Decided 2026-09-10: 3.** Revisit on the first week's real data | Omegea |
+| 2 | ~~Journal prompt set and wording~~ **Decided 2026-09-12: three prompts — "What held today up?" · "What moved?" · "What is waiting on you tomorrow?"** Seeded per tenant by the signup trigger and keyed by slug, so rewording them is data, not a migration | Omegea |
 | 3 | Display typeface — Urbanist is the safe default; a display face needs on-device validation | Omegea, after §7 step 2 |
 | 4 | Pricing and paywall shape | Not needed for the beta |
 | 5 | Chart palette — the v2 five-series set has two series below 3:1 on dark | Blocks charts; no charts in this slice |

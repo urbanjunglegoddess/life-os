@@ -147,6 +147,50 @@ describe('the cleared state', () => {
   });
 });
 
+describe('undo (ADR-0011)', () => {
+  test('clearing an answer returns the step to unanswered', () => {
+    const dropped = run(threeSteps(), { type: 'respond', value: 'drop' });
+    assert.equal(answeredCount(dropped), 1);
+
+    const undone = run(dropped, { type: 'clearAnswer', stepId: 'overdue-1' });
+    assert.equal(answerFor(undone, 'overdue-1'), null);
+    assert.equal(answeredCount(undone), 0);
+  });
+
+  test('undo does not move the sequence backwards', () => {
+    // The user corrected a mistake; they did not ask to be returned to a card
+    // they have already passed. Yanking the index would be a second surprise.
+    const dropped = run(threeSteps(), { type: 'respond', value: 'drop' });
+    const undone = run(dropped, { type: 'clearAnswer', stepId: 'overdue-1' });
+
+    assert.equal(undone.index, dropped.index);
+    assert.equal(position(undone), position(dropped));
+  });
+
+  test('undo leaves every other answer alone', () => {
+    const two = run(
+      threeSteps(),
+      { type: 'respond', value: 'do-now' },
+      { type: 'respond', value: 'drop' },
+    );
+    const undone = run(two, { type: 'clearAnswer', stepId: 'overdue-2' });
+
+    assert.deepEqual(answerFor(undone, 'overdue-1'), {
+      kind: 'responded',
+      value: 'do-now',
+    });
+    assert.equal(answerFor(undone, 'overdue-2'), null);
+  });
+
+  test('clearing an unanswered step is a no-op, not a crash', () => {
+    // Reachable by a double-tap on the toast: the first undo clears the
+    // answer, the second arrives against a step that no longer has one.
+    const s = threeSteps();
+    assert.equal(run(s, { type: 'clearAnswer', stepId: 'due-1' }), s);
+    assert.equal(run(s, { type: 'clearAnswer', stepId: 'no-such-step' }), s);
+  });
+});
+
 describe('state is never mutated in place', () => {
   test('the previous state is untouched by a transition', () => {
     const before = threeSteps();
