@@ -47,7 +47,7 @@ export default function Home() {
           >
             Life OS
           </Text>
-          <Text className="text-sm text-muted">Slice one · capture</Text>
+          <Text className="text-sm text-muted">Slice one · today &amp; capture</Text>
         </View>
 
         {auth === 'checking' && <Text className="text-sm text-muted">Checking…</Text>}
@@ -79,11 +79,21 @@ export default function Home() {
               The whole point of the app at this stage: one tap from open to a
               captured thought. Everything else on this screen gives way to it.
             */}
+            {/*
+              Today leads: §5.4 orders by consequence, and what breaks if
+              skipped outranks what might be added. Capture sits under it, still
+              one tap from open.
+            */}
+            <HomeButton
+              label="Today"
+              hint="Opens today's work, most consequential first"
+              onPress={() => router.push('/today')}
+              emphasis="primary"
+            />
             <HomeButton
               label="Capture"
               hint="Opens the capture flow to add something new"
               onPress={() => router.push('/capture')}
-              emphasis="primary"
             />
             <HomeButton
               label="Sign out"
@@ -95,7 +105,7 @@ export default function Home() {
 
         <View className="grow" />
         <Text className="text-sm text-muted">
-          Next: the Today flow, against actions_today.
+          Next: the escape-hatch list, then the journal.
         </Text>
       </View>
     </SafeAreaView>
