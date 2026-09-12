@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 
 import { supabase } from './supabase';
+import { loggedWrite } from './writeLog.ts';
 
 /**
  * Email OTP auth. No password, per the locked stack — one less secret for the
@@ -8,6 +9,12 @@ import { supabase } from './supabase';
  *
  * These are the data-access layer's auth functions. Screens call them; screens
  * never call `supabase.auth` directly.
+ *
+ * The three mutating calls are logged like any other write (ADR-0012). A first
+ * sign-in IS account creation — it fires the trigger that writes profile,
+ * tenant, membership, entities and areas — and a sign-in that fails on bad wifi
+ * at 6am costs the whole day's loop, which is precisely the friction the log
+ * has to be able to account for. `getSession` is a read and is not logged.
  */
 
 /**
@@ -17,11 +24,13 @@ import { supabase } from './supabase';
  * path. Turning this off would produce a user with no tenant and no rights.
  */
 export async function sendEmailOtp(email: string): Promise<void> {
-  const { error } = await supabase.auth.signInWithOtp({
-    email: email.trim().toLowerCase(),
-    options: { shouldCreateUser: true },
+  return loggedWrite('auth.otp_send', async () => {
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim().toLowerCase(),
+      options: { shouldCreateUser: true },
+    });
+    if (error) throw error;
   });
-  if (error) throw error;
 }
 
 /** Exchange the emailed code for a session. */
@@ -29,19 +38,23 @@ export async function verifyEmailOtp(
   email: string,
   token: string,
 ): Promise<Session> {
-  const { data, error } = await supabase.auth.verifyOtp({
-    email: email.trim().toLowerCase(),
-    token: token.trim(),
-    type: 'email',
+  return loggedWrite('auth.otp_verify', async () => {
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: email.trim().toLowerCase(),
+      token: token.trim(),
+      type: 'email',
+    });
+    if (error) throw error;
+    if (!data.session) throw new Error('Verification returned no session.');
+    return data.session;
   });
-  if (error) throw error;
-  if (!data.session) throw new Error('Verification returned no session.');
-  return data.session;
 }
 
 export async function signOut(): Promise<void> {
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
+  return loggedWrite('auth.sign_out', async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  });
 }
 
 export async function getSession(): Promise<Session | null> {
