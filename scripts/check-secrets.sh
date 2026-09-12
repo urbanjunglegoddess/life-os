@@ -14,6 +14,16 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+# A gate that cannot run must not report a pass. Every check below is an `rg`
+# invocation whose empty output means "clean", so a missing ripgrep would turn
+# this whole script green — the false-confidence failure the FC-1 note warns
+# about, in the one place nobody would think to look.
+if ! command -v rg >/dev/null 2>&1; then
+  echo "check-secrets: ripgrep (rg) is not installed, so this gate cannot run." >&2
+  echo "  Install ripgrep and re-run. CI installs it explicitly for this reason." >&2
+  exit 2
+fi
+
 fail=0
 report() { fail=1; echo ""; echo "  ✗ $1"; echo ""; }
 

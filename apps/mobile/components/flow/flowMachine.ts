@@ -32,6 +32,8 @@ export type FlowEvent =
   | { readonly type: 'skip' }
   | { readonly type: 'back' }
   | { readonly type: 'goTo'; readonly index: number }
+  /** Undo (ADR-0011). Returns a step to unanswered WITHOUT moving the index. */
+  | { readonly type: 'clearAnswer'; readonly stepId: StepId }
   | { readonly type: 'exit' }
   | { readonly type: 'resume' };
 
@@ -73,6 +75,21 @@ export function flowReducer(state: FlowState, event: FlowEvent): FlowState {
       const max = state.stepIds.length;
       const clamped = Math.min(Math.max(event.index, 0), max);
       return { ...state, index: clamped };
+    }
+
+    case 'clearAnswer': {
+      // Undo. The step goes back to unanswered — indistinguishable from never
+      // having been reached, which is correct: the whole point of undo is that
+      // the answer did not happen.
+      //
+      // THE INDEX DOES NOT MOVE. Undoing a drop restores the row; it does not
+      // yank the user backwards into a card they have already passed. Dragging
+      // the sequence around under someone who tapped "undo" would be a second
+      // surprise on top of the one they were correcting.
+      if (state.answers[event.stepId] === undefined) return state;
+      const answers = { ...state.answers };
+      delete answers[event.stepId];
+      return { ...state, answers };
     }
 
     case 'exit':

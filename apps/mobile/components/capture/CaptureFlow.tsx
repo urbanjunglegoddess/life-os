@@ -91,7 +91,11 @@ export function CaptureFlow({ onDone }: { onDone: () => void }) {
         </Text>
         <Text className="text-base leading-relaxed text-muted">{title}</Text>
         <View className="pt-6">
-          <FlowButton label="Done" hint="Returns to the home screen" onPress={onDone} />
+          <FlowButton
+            label="Back to today"
+            hint="Closes capture and returns to today's queue"
+            onPress={onDone}
+          />
         </View>
       </View>
     );
@@ -121,7 +125,11 @@ export function CaptureFlow({ onDone }: { onDone: () => void }) {
           onPress={() => void save('someday')}
           emphasis="primary"
         />
-        <FlowButton label="Back to home" hint="Leaves without saving" onPress={onDone} />
+        <FlowButton
+          label="Back to today"
+          hint="Leaves without saving and returns to today's queue"
+          onPress={onDone}
+        />
       </View>
     );
   }

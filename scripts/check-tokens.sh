@@ -17,6 +17,16 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+# A gate that cannot run must not report a pass. Every check below is an `rg`
+# invocation whose empty output means "clean", so a missing ripgrep would turn
+# this whole script green — the false-confidence failure the FC-1 note warns
+# about, in the one place nobody would think to look.
+if ! command -v rg >/dev/null 2>&1; then
+  echo "check-tokens: ripgrep (rg) is not installed, so this gate cannot run." >&2
+  echo "  Install ripgrep and re-run. CI installs it explicitly for this reason." >&2
+  exit 2
+fi
+
 SCAN=()
 [ -d apps ] && SCAN+=(apps)
 [ -d packages ] && SCAN+=(packages)
@@ -77,6 +87,55 @@ if [ -n "$raw" ]; then
   echo "$raw"
   echo ""
   echo "    Components touch the SEMANTIC tier only (4.7 §3.1)."
+fi
+
+# ---- 4. the raw palette still matches the LOCKED brand values -----------
+# Checks 1-3 keep design values inside the palette file. Nothing checked the
+# palette file itself, so it could have been edited to any hex and every gate
+# would still have gone green — the palette is the one file whose whole job is
+# to hold specific numbers, and it had no assertion on those numbers.
+#
+# Source: UJG Color System v2.0, locked 2026-07-29, as published in the design
+# system's tokens/colors.css and readme.md. See
+# docs/DESIGN-SYSTEM-RECONCILIATION.md.
+#
+# A change here is a BRAND decision recorded in 4.6 first, never a code change
+# (4.7 §13). If this fails, either the palette drifted or the brand moved — and
+# either way somebody has to say which.
+if [ -f "$PALETTE_FILE" ]; then
+  # token=hex. Two characters separate --midnight-forest #042F1E from the
+  # RETIRED v1 Dark Green #042D1D, which is exactly the kind of typo check 2
+  # catches only after it has already shipped.
+  LOCKED=(
+    'color-night=#0A0A0A'
+    'color-platinum=#E8E6E1'
+    'color-platinum-muted=#A8A5A0'
+    'color-gold=#F2B01E'
+    'color-marigold=#E28D1F'
+    'color-ember=#D9531A'
+    'color-jungle-green=#2E6B4F'
+    'color-forest-midnight=#042F1E'
+    'color-forest-rich=#0D5E39'
+    'color-amethyst=#47107D'
+  )
+
+  drift=""
+  for pair in "${LOCKED[@]}"; do
+    name="${pair%%=*}"
+    hex="${pair#*=}"
+    if ! rg -q "'${name}':\s*'${hex}'" "$PALETTE_FILE" 2>/dev/null; then
+      actual="$(rg -o "'${name}':\s*'#[0-9A-Fa-f]{6}'" "$PALETTE_FILE" 2>/dev/null || true)"
+      drift+="      ${name} must be ${hex} — found: ${actual:-<missing>}"$'\n'
+    fi
+  done
+
+  if [ -n "$drift" ]; then
+    report "Palette has drifted from UJG Color System v2.0 (locked 2026-07-29):"
+    printf '%s' "$drift"
+    echo "    A palette change is a BRAND decision recorded in 4.6 first (4.7 §13)."
+    echo "    If the brand genuinely moved, update this list and the reconciliation doc"
+    echo "    in the same commit — otherwise the next drift has nothing to fail against."
+  fi
 fi
 
 echo ""

@@ -30,6 +30,16 @@ const config: ExpoConfig = {
   },
   plugins: [
     'expo-router',
+    // The journal gate (rule 6). iOS refuses Face ID without a usage string,
+    // and the refusal surfaces as a generic authentication failure rather than
+    // as a missing-permission error — so the gate would simply never open.
+    [
+      'expo-local-authentication',
+      {
+        faceIDPermission:
+          'Life OS asks Face ID before opening your journal, every time you come back to it.',
+      },
+    ],
     [
       'expo-splash-screen',
       {

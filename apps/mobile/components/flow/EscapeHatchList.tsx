@@ -6,6 +6,13 @@ import type { FlowAnswer, StepId } from './flowMachine.ts';
 export interface EscapeHatchItem {
   readonly id: StepId;
   readonly title: string;
+  /**
+   * One extra fact for the meta line — "Overdue 2 days", "Due today".
+   * Optional because not every flow has one: the journal's prompts are a
+   * sequence of questions with no external status to report, and padding the
+   * line with a placeholder would be noise where the design has silence.
+   */
+  readonly meta?: string;
 }
 
 export interface EscapeHatchListProps {
@@ -62,19 +69,35 @@ export function EscapeHatchList({
       <ScrollView contentContainerClassName="gap-2 px-4 pb-8">
         {items.map((item, index) => {
           const status = statusLabel(answers[item.id]);
+          /*
+            Position · when · status, as artboard 1d draws it. Position is on
+            the visible line and not only in the accessibility label, because
+            the whole point of this list is orientation — "where am I in this"
+            is the question it exists to answer, and a sighted user scanning it
+            deserves the same answer a screen reader gets.
+          */
+          const meta = [
+            `${index + 1} of ${items.length}`,
+            item.meta,
+            status,
+          ]
+            .filter((part): part is string => part !== undefined)
+            // The middle dot is the brand's house separator for metadata.
+            .join(' · ');
+
           return (
             <Pressable
               key={item.id}
               onPress={() => onSelect(index)}
               accessibilityRole="button"
               /* One composed label, not fragments to swipe through (4.8 §7). */
-              accessibilityLabel={`${index + 1} of ${items.length}. ${item.title}. ${status}`}
+              accessibilityLabel={`${index + 1} of ${items.length}. ${item.title}. ${item.meta === undefined ? '' : `${item.meta}. `}${status}`}
               accessibilityHint="Jumps to this question"
               style={{ minHeight: TARGET['tap-target-min'] }}
               className="justify-center gap-1 rounded-lg border-thin border-decorative bg-surface p-4"
             >
               <Text className="text-base text-primary">{item.title}</Text>
-              <Text className="text-sm text-muted">{status}</Text>
+              <Text className="text-sm text-muted">{meta}</Text>
             </Pressable>
           );
         })}
