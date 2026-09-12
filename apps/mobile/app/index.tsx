@@ -61,60 +61,26 @@ export default function EntryGate() {
           >
             Could not reach Supabase
           </Text>
-          <Text className="text-sm text-muted">Slice one · capture</Text>
-        </View>
-
-        {auth === 'checking' && <Text className="text-sm text-muted">Checking…</Text>}
-
-        {auth === 'error' && (
-          <View className="gap-2 rounded-lg border-thin border-decorative bg-surface p-4">
-            <Text className="text-base text-state-error">Could not reach Supabase</Text>
-            <Text className="text-sm text-muted">{detail ?? 'Unknown error.'}</Text>
-          </View>
-        )}
-
-        {auth === 'signed-out' && (
-          <View className="gap-4">
-            <Text className="text-base leading-relaxed text-muted">
-              Sign in to start capturing.
+          <Text className="text-base leading-relaxed text-muted">
+            {detail ?? 'Unknown error.'}
+          </Text>
+          <Pressable
+            onPress={() => setAttempt((n) => n + 1)}
+            accessibilityRole="button"
+            accessibilityLabel="Try again"
+            accessibilityHint="Checks for a saved session again"
+            hitSlop={TARGET['hit-slop-default']}
+            style={{ minHeight: TARGET['tap-target-min'] }}
+            className="justify-center rounded-md bg-accent-primary px-4"
+          >
+            <Text className="text-center text-base font-semibold text-on-warm">
+              Try again
             </Text>
-            <HomeButton
-              label="Sign in"
-              hint="Opens the email sign-in flow"
-              onPress={() => router.push('/sign-in')}
-              emphasis="primary"
-            />
-          </View>
-        )}
-
-        {auth === 'signed-in' && (
-          <View className="gap-4">
-            {/*
-              The whole point of the app at this stage: one tap from open to a
-              captured thought. Everything else on this screen gives way to it.
-            */}
-            <HomeButton
-              label="Capture"
-              hint="Opens the capture flow to add something new"
-              onPress={() => router.push('/capture')}
-              emphasis="primary"
-            />
-            <HomeButton
-              label="Sign out"
-              hint="Ends this session on the device"
-              onPress={() => void signOut()}
-            />
-          </View>
-        )}
-
-        <View className="grow" />
-        <Text className="text-sm text-muted">
-          Next: the Today flow, against actions_today.
-        </Text>
-      </View>
-    </SafeAreaView>
-  );
-}
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-base">

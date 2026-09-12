@@ -141,6 +141,13 @@ export function CaptureFlow({ onDone }: { onDone: () => void }) {
       total={3}
       canGoBack={stage !== 'title'}
       onBack={() => setStage(stage === 'when' ? 'area' : 'title')}
+      /*
+        Capture has no escape hatch: three questions, each already visible in
+        one screen's worth of sequence, and the list view §5.1 demands is for
+        flows long enough to lose your place in. A no-op keeps the anatomy's
+        third region occupied so the header does not reflow between flows.
+      */
+      onShowAll={() => {}}
       title={
         stage === 'title'
           ? 'What is it?'
