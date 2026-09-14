@@ -11,6 +11,10 @@ const config: ExpoConfig = {
   orientation: 'portrait',
   icon: './assets/icon.png',
   scheme: 'lifeos',
+  // Native only. The web surface is apps/web (Next, compliance pages), and the
+  // journal gate and secure-store session have no browser equivalent — so a web
+  // bundle here would be a second, weaker app rather than a preview of this one.
+  platforms: ['ios', 'android'],
   // One theme exists: dark base (4.7). Light and high-contrast are FUTURE-STATE,
   // which the semantic layer is built to make possible later.
   userInterfaceStyle: 'dark',
